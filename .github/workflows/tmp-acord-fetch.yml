@@ -1,0 +1,42 @@
+name: Temporary ACORD Dataset Fetch
+
+on:
+  push:
+    branches:
+      - tmp-acord-fetch-20260809
+
+permissions:
+  contents: read
+
+env:
+  ACORD_SHA256: c9e851456a14aed161033b856e9f40f3cc9f46cf7282c2007b143420e93a65c3
+
+jobs:
+  fetch-acord:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download official ACORD archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 4 \
+            'https://huggingface.co/datasets/theatticusproject/acord/resolve/main/ACORD%20Dataset%20%26%20ReadMe.zip?download=true' \
+            --output acord.zip
+          echo "${ACORD_SHA256}  acord.zip" | sha256sum --check --strict
+      - name: Extract and inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifact/acord
+          unzip -q acord.zip -d artifact/acord
+          find artifact/acord -type f -printf '%P\t%s bytes\n' | sort > artifact/FILE_INVENTORY.txt
+          sha256sum acord.zip > artifact/ARCHIVE_SHA256.txt
+      - name: Upload extracted dataset
+        uses: actions/upload-artifact@v4
+        with:
+          name: acord-extracted
+          path: artifact
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
